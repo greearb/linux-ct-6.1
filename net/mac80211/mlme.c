@@ -725,7 +725,7 @@ static void ieee80211_add_he_ie(struct ieee80211_sub_if_data *sdata,
 				      he_cap->he_cap_elem.phy_cap_info);
 	pos = skb_put(skb, he_cap_size);
 	pre_he_pos = pos;
-	pos = ieee80211_ie_build_he_cap(conn_flags,
+	pos = ieee80211_ie_build_he_cap(sdata, conn_flags,
 					pos, he_cap, pos + he_cap_size);
 	/* trim excess if any */
 	skb_trim(skb, skb->len - (pre_he_pos + he_cap_size - pos));
@@ -963,12 +963,12 @@ static size_t ieee80211_add_before_he_elems(struct sk_buff *skb,
 
 static void ieee80211_assoc_add_ml_elem(struct ieee80211_sub_if_data *sdata,
 					struct sk_buff *skb, u16 capab,
-					const struct element *ext_capa,
+					struct element *ext_capa,
 					const u16 *present_elems);
 
 static size_t ieee80211_assoc_link_elems(struct ieee80211_sub_if_data *sdata,
 					 struct sk_buff *skb, u16 *capab,
-					 const struct element *ext_capa,
+					 struct element *ext_capa,
 					 const u8 *extra_elems,
 					 size_t extra_elems_len,
 					 unsigned int link_id,
@@ -1070,6 +1070,14 @@ static size_t ieee80211_assoc_link_elems(struct ieee80211_sub_if_data *sdata,
 			*pos++ = 1; /* one channel in the subband*/
 		}
 		ADD_PRESENT_ELEM(WLAN_EID_SUPPORTED_CHANNELS);
+	}
+
+	/* Apply overrides as needed. */
+	if (assoc_data->link[link_id].conn_flags & IEEE80211_CONN_DISABLE_TWT) {
+		if (ext_capa && ext_capa->datalen > 10) {
+			ext_capa->data[9] &= ~(WLAN_EXT_CAPA10_TWT_RESPONDER_SUPPORT);
+			ext_capa->data[9] &= ~(WLAN_EXT_CAPA10_TWT_REQUESTER_SUPPORT);
+		}
 	}
 
 	/* if present, add any custom IEs that go before HT */
@@ -1212,7 +1220,7 @@ static void ieee80211_add_non_inheritance_elem(struct sk_buff *skb,
 
 static void ieee80211_assoc_add_ml_elem(struct ieee80211_sub_if_data *sdata,
 					struct sk_buff *skb, u16 capab,
-					const struct element *ext_capa,
+					struct element *ext_capa,
 					const u16 *outer_present_elems)
 {
 	struct ieee80211_local *local = sdata->local;
@@ -3890,24 +3898,29 @@ static void ieee80211_get_rates(struct ieee80211_supported_band *sband,
 	}
 }
 
-static bool ieee80211_twt_req_supported(const struct link_sta_info *link_sta,
-					const struct ieee802_11_elems *elems)
+static bool ieee80211_twt_req_supported(struct ieee80211_sub_if_data *sdata,
+					const struct link_sta_info *link_sta,
+					const struct ieee802_11_elems *elems,
+					ieee80211_conn_flags_t conn_flags)
 {
 	if (elems->ext_capab_len < 10)
 		return false;
 
 	if (!(elems->ext_capab[9] & WLAN_EXT_CAPA10_TWT_RESPONDER_SUPPORT))
 		return false;
+	if (conn_flags & IEEE80211_CONN_DISABLE_TWT)
+		return false;
 
 	return link_sta->pub->he_cap.he_cap_elem.mac_cap_info[0] &
 		IEEE80211_HE_MAC_CAP0_TWT_RES;
 }
 
-static int ieee80211_recalc_twt_req(struct ieee80211_link_data *link,
+static int ieee80211_recalc_twt_req(struct ieee80211_sub_if_data *sdata,
+				    struct ieee80211_link_data *link,
 				    struct link_sta_info *link_sta,
 				    struct ieee802_11_elems *elems)
 {
-	bool twt = ieee80211_twt_req_supported(link_sta, elems);
+	bool twt = ieee80211_twt_req_supported(sdata, link_sta, elems, link->u.mgd.conn_flags);
 
 	if (link->conf->twt_requester != twt) {
 		link->conf->twt_requester = twt;
@@ -4121,7 +4134,7 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 		else
 			bss_conf->twt_protected = false;
 
-		*changed |= ieee80211_recalc_twt_req(link, link_sta, elems);
+		*changed |= ieee80211_recalc_twt_req(sdata, link, link_sta, elems);
 
 		if (elems->eht_operation && elems->eht_cap &&
 		    !(link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_EHT)) {
@@ -5704,7 +5717,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 		goto free;
 	}
 
-	changed |= ieee80211_recalc_twt_req(link, link_sta, elems);
+	changed |= ieee80211_recalc_twt_req(sdata, link, link_sta, elems);
 
 	if (ieee80211_config_bw(link, elems->ht_cap_elem,
 				elems->vht_cap_elem, elems->ht_operation,
@@ -7076,6 +7089,9 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 
 	if (req->flags & ASSOC_REQ_DISABLE_EHT)
 		conn_flags |= IEEE80211_CONN_DISABLE_EHT;
+
+	if (req->flags & ASSOC_REQ_DISABLE_TWT)
+		conn_flags |= IEEE80211_CONN_DISABLE_TWT;
 
 	memcpy(&ifmgd->ht_capa, &req->ht_capa, sizeof(ifmgd->ht_capa));
 	memcpy(&ifmgd->ht_capa_mask, &req->ht_capa_mask,
