@@ -2825,6 +2825,7 @@ struct cfg80211_assoc_link {
  *	Drivers shall disable MLO features for the current association if this
  *	flag is not set.
  * @ASSOC_REQ_DISABLE_TWT:  Disable TWT
+ * @ASSOC_REQ_DISABLE_160:  Disable 160Mhz
  */
 enum cfg80211_assoc_req_flags {
 	ASSOC_REQ_DISABLE_HT			= BIT(0),
@@ -2835,6 +2836,7 @@ enum cfg80211_assoc_req_flags {
 	ASSOC_REQ_DISABLE_EHT			= BIT(5),
 	CONNECT_REQ_MLO_SUPPORT			= BIT(6),
 	ASSOC_REQ_DISABLE_TWT                   = BIT(7),
+	ASSOC_REQ_DISABLE_160			= BIT(8),
 };
 
 /**
