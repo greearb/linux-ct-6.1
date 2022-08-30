@@ -1744,7 +1744,7 @@ mt7915_tm_group_prek(struct mt7915_phy *phy, enum mt76_testmode_state state)
 		dev_info(dev->mt76.dev, "Group Pre-Cal:\n");
 		for (i = 0; i < (group_size / sizeof(u32)); i += 4) {
 			dev_info(dev->mt76.dev, "[0x%08x] 0x%8x 0x%8x 0x%8x 0x%8x\n",
-				 i * sizeof(u32), pre_cal[i], pre_cal[i + 1],
+				 (u32)(i * sizeof(u32)), pre_cal[i], pre_cal[i + 1],
 				 pre_cal[i + 2], pre_cal[i + 3]);
 		}
 		break;
@@ -1925,7 +1925,7 @@ mt7915_tm_dpd_prek(struct mt7915_phy *phy, enum mt76_testmode_state state)
 		for (i = 0; i < dpd_size / sizeof(u32); i += 4) {
 			j = i + (group_size / sizeof(u32));
 			dev_info(dev->mt76.dev, "[0x%08x] 0x%8x 0x%8x 0x%8x 0x%8x\n",
-				 j * sizeof(u32), pre_cal[j], pre_cal[j + 1],
+				 (u32)(j * sizeof(u32)), pre_cal[j], pre_cal[j + 1],
 				 pre_cal[j + 2], pre_cal[j + 3]);
 		}
 		break;
