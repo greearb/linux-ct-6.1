@@ -566,6 +566,10 @@ bool mt76_connac2_mac_fill_txs(struct mt76_dev *dev, struct mt76_wcid *wcid,
 	u32 txrate, txs, mode;
 
 	txs = le32_to_cpu(txs_data[0]);
+	/*
+	txs2 = le32_to_cpu(txs_data[2]);
+	TODO:  Add tx-bf stats in DW2: no-bf, ibf, ebf, mubf?
+	*/
 
 	/* PPDU based reporting */
 	if (FIELD_GET(MT_TXS0_TXS_FORMAT, txs) > 1) {
@@ -578,6 +582,9 @@ bool mt76_connac2_mac_fill_txs(struct mt76_dev *dev, struct mt76_wcid *wcid,
 		stats->tx_retries +=
 			le32_get_bits(txs_data[7], MT_TXS7_MPDU_RETRY_CNT);
 	}
+
+	mtk_dbg(dev, TX, "wcid: %d connac2_mac_add_txs_skb, err-msk: 0x%x",
+		wcid->idx, (u32)(txs & MT_TXS0_ACK_ERROR_MASK));
 
 	txrate = FIELD_GET(MT_TXS0_TX_RATE, txs);
 
