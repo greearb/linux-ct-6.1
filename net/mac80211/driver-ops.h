@@ -497,8 +497,9 @@ static inline void drv_sta_pre_rcu_remove(struct ieee80211_local *local,
 	might_sleep();
 
 	sdata = get_bss_sdata(sdata);
-	if (!check_sdata_in_driver(sdata))
-		return;
+	if (!check_sdata_in_driver(sdata)) {
+		pr_err("drv-sta-pre-rcu-remove, sdata-not-in-driver, but will continue in hopes it cleans something up.\n");
+	}
 
 	trace_drv_sta_pre_rcu_remove(local, sdata, &sta->sta);
 	if (local->ops->sta_pre_rcu_remove)
@@ -616,8 +617,9 @@ static inline void drv_flush(struct ieee80211_local *local,
 
 	might_sleep();
 
-	if (sdata && !check_sdata_in_driver(sdata))
-		return;
+	if (sdata && !check_sdata_in_driver(sdata)) {
+		pr_err("drv_flush, sdata-not-in-driver, but will continue in hopes it cleans something up.\n");
+	}
 
 	trace_drv_flush(local, queues[0], drop);
 	/* NOTE:  Only ath10k might want more queues than fits in 32-bits,
@@ -854,8 +856,10 @@ drv_mgd_protect_tdls_discover(struct ieee80211_local *local,
 {
 	might_sleep();
 
-	if (!check_sdata_in_driver(sdata))
+	if (!check_sdata_in_driver(sdata)) {
+		pr_err("drv-unassing-vif-chantx, sdata-not-in-driver, but will continue in hopes it cleans something up.\n");
 		return;
+	}
 	WARN_ON_ONCE(sdata->vif.type != NL80211_IFTYPE_STATION);
 
 	trace_drv_mgd_protect_tdls_discover(local, sdata);
